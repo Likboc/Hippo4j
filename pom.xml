@@ -17,6 +17,10 @@
     <modules>
         <module>server</module>
         <module>hippo-console</module>
+        <module>hippo-common</module>
+        <module>server/config</module>
+        <module>hippo-client</module>
+        <module>hippo-core</module>
     </modules>
     <properties>
         <java.version>17</java.version>
