@@ -1,5 +1,6 @@
 package com.example.remote;
 
-public class ServerHealthCheck {
-    private HttpAgent httpAgent;
+public interface ServerHealthCheck {
+    boolean isHealthStatus();
+    void setHealthStatus(boolean healthStatus);
 }

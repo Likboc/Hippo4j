@@ -1,5 +1,8 @@
 package com.example.remote;
 
+import com.example.entity.Result;
+
+import java.util.Map;
 import java.util.concurrent.*;
 
 public class ServerHttpAgent implements HttpAgent{
@@ -24,5 +27,11 @@ public class ServerHttpAgent implements HttpAgent{
         this.executorService.scheduleAtFixedRate(() -> {
             this.securityProxy.applyToken();
         },0,this.securityInfoRefreshIntervalMills, TimeUnit.MILLISECONDS);
+    }
+
+
+    @Override
+    public Result httpPostByConfig(String path, Map<String, String> headers, Map<String, String> paramValue, long readTimeoutMs) {
+        return null;
     }
 }
