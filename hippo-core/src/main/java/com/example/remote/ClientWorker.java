@@ -1,8 +1,12 @@
 package com.example.remote;
 
+import ch.qos.logback.core.net.ssl.SSL;
 import com.example.entity.CacheData;
 import com.example.entity.Constants;
 import com.example.entity.Result;
+import com.example.tools.GroupKey;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
@@ -11,7 +15,11 @@ import java.nio.CharBuffer;
 import java.util.*;
 import java.util.concurrent.*;
 
-public class ClientWorker {
+/**
+ * send check request to server continuously
+ */
+@Slf4j
+public class ClientWorker implements DisposableBean {
     private final long timeout;
     private final String identify;
     private final HttpAgent agent;
@@ -40,14 +48,20 @@ public class ClientWorker {
             thread.setName("client.long.polling.executor");
             return thread;
         });
-        /**
-         *  launch the daemon thread to get the change information
-         *  only execute once at the autoconfigure period, you know ?
-         */
         executor.schedule(() -> {
-            executorService.execute(new LongPollingRunnable(cacheMap.isEmpty(), cacheCondition));
+            try{
+                executorService.execute(new LongPollingRunnable(cacheMap.isEmpty(), cacheCondition));
+            } catch (Throwable ex) {
+                System.out.println("hi");
+            }
         },1, TimeUnit.MILLISECONDS);
     }
+
+    @Override
+    public void destroy() throws Exception {
+        executorService.shutdown();
+    }
+
     class LongPollingRunnable implements Runnable {
         private boolean cacheMapInitEmptyFlag;
         private final CountDownLatch cacheCondition;
@@ -56,10 +70,43 @@ public class ClientWorker {
             this.cacheCondition = cacheCondition;
         }
 
+        /**
+         * firstly, run health check of the server
+         * then send request to get changed config
+         * send request to get detail config
+         * set the executor parameter
+         *
+         * i literlly have no idea why they write this in such a complicated way
+         */
         @Override
         public void run() {
             serverHealthCheck.isHealthStatus();
-            List<String> changedTpIds = checkUpdateDataIds();
+            List<CacheData> cacheDataList = new ArrayList<>();
+            List<String> inInitializingCacheList = new ArrayList<>();
+            cacheMap.forEach((key,val) -> cacheDataList.add(val));
+            List<String> changedTpIds = checkUpdateDataIds(cacheDataList,inInitializingCacheList);
+            for(String groupKey : changedTpIds) {
+                String[] keys = groupKey.split("\\+");
+                String tpId = keys[0];
+                String itemId = keys[1];
+                String namespace = keys[2];
+                try {
+                    String content = getServerConfig(namespace,itemId,tpId,3000L);
+                    CacheData cacheData = cacheMap.get(tpId);
+                    // String poolContent = ;
+                } catch (Exception ignored) {
+                    log.error("Failed to get the latest thread pool configuration.",ignored);
+                }
+            }
+            for (CacheData cacheData : cacheDataList) {
+                if (!cacheData.isInitializing() || inInitializingCacheList
+                        .contains(GroupKey.getKeyTenant(cacheData.threadPoolId, cacheData.itemId, cacheData.tenantId))) {
+                    cacheData.checkListenerMd5();
+                    cacheData.setInitializing(false);
+                }
+            }
+            inInitializingCacheList.clear();
+            executorService.execute(this);
         }
     }
 
@@ -124,4 +171,12 @@ public class ClientWorker {
          return updateList;
     }
 
+    public String getServerConfig(String namespace,String itemId,String threadPoolId,long readTimeout) {
+        Map<String,String> params = new HashMap<>(3);
+        params.put("namespace",namespace);
+        params.put("itemId",itemId);
+        params.put("tpId",itemId);
+        params.put("instanceId",identify);
+        Result result =
+    }
 }
