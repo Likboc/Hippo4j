@@ -4,6 +4,9 @@ import com.example.entity.Result;
 
 import java.util.Map;
 
+/**
+ * send http request tool
+ */
 public interface HttpAgent {
     void start();
     Result httpPostByConfig(String path, Map<String,String> headers,Map<String,String> paramValue,long readTimeoutMs);

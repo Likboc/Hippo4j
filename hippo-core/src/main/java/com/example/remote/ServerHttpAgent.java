@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.*;
 
-public class ServerHttpAgent implements HttpAgent{
+public class ServerHttpAgent implements HttpAgent {
     private ScheduledExecutorService executorService;
     private final long securityInfoRefreshIntervalMills;
 
@@ -47,7 +47,6 @@ public class ServerHttpAgent implements HttpAgent{
     @Override
     public Result httpGetByConfig(String path, Map<String, String> headers, Map<String, String> paramValues, long readTimeoutMs) {
         isHealthStatus();
-
         return null;
     }
     public void isHealthStatus() {

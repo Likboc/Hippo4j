@@ -2,7 +2,7 @@ package com.example.util;
 
 import org.springframework.util.StringUtils;
 
-import static com.example.entity.Constants.GROUP_KEY_DELIMITER;
+import static com.example.constant.Constants.GROUP_KEY_DELIMITER;
 
 public class GroupKey {
     private static String doGetKey(String dataId, String group,String datumStr) {
