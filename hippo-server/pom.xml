@@ -7,11 +7,15 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>hippo-core</artifactId>
-    <packaging>jar</packaging>
+    <artifactId>hippo-server</artifactId>
+    <packaging>pom</packaging>
 
-    <name>hippo-core</name>
+    <name>server</name>
     <url>http://maven.apache.org</url>
+    <modules>
+        <module>auth</module>
+        <module>config</module>
+    </modules>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -23,17 +27,6 @@
             <artifactId>junit</artifactId>
             <version>3.8.1</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.example</groupId>
-            <artifactId>config</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.example</groupId>
-            <artifactId>hippo-common</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
         </dependency>
     </dependencies>
 </project>

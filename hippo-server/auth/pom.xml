@@ -3,14 +3,14 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.example</groupId>
-        <artifactId>hippo</artifactId>
+        <artifactId>hippo-server</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>hippo-core</artifactId>
+    <artifactId>auth</artifactId>
     <packaging>jar</packaging>
 
-    <name>hippo-core</name>
+    <name>auth</name>
     <url>http://maven.apache.org</url>
 
     <properties>
@@ -24,16 +24,10 @@
             <version>3.8.1</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>com.example</groupId>
-            <artifactId>config</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.example</groupId>
-            <artifactId>hippo-common</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-        </dependency>
+        <!--1. spring security -->
+<!--        <dependency>-->
+<!--            <groupId>org.springframework.boot</groupId>-->
+<!--            <artifactId>spring-boot-starter-security</artifactId>-->
+<!--        </dependency>-->
     </dependencies>
 </project>

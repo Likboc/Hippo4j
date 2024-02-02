@@ -15,12 +15,12 @@
     <name>hippo</name>
     <description>hippo</description>
     <modules>
-        <module>server</module>
+        <module>hippo-server</module>
         <module>hippo-console</module>
         <module>hippo-common</module>
-        <module>server/config</module>
-        <module>hippo-client</module>
+        <module>hippo-server/config</module>
         <module>hippo-core</module>
+        <module>hippo-spring-boot</module>
     </modules>
     <properties>
         <java.version>17</java.version>
