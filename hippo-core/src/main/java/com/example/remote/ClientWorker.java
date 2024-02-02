@@ -1,17 +1,22 @@
 package com.example.remote;
 
-import com.example.entity.CacheData;
+import com.example.Listener;
 import com.example.constant.Constants;
+import com.example.entity.CacheData;
 import com.example.entity.Result;
+import com.example.entity.ThreadPoolParameterInfo;
 import com.example.tools.GroupKey;
+import com.example.util.ContentUtil;
+import com.example.util.JSONUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
-
 import java.net.URLDecoder;
 import java.util.*;
 import java.util.concurrent.*;
+
+import static com.example.constant.Constants.*;
 
 /**
  * send check request to server continuously
@@ -20,16 +25,24 @@ import java.util.concurrent.*;
 public class ClientWorker implements DisposableBean {
     private final long timeout;
     private final String identify;
+    private final String version;
+
     private final HttpAgent agent;
     private final ServerHealthCheck serverHealthCheck;
     private final ScheduledExecutorService executorService;
+    private final ClientShutdown hippo4jClientShutdown;
+
+    private final CountDownLatch awaitApplicationComplete = new CountDownLatch(1);
     private final CountDownLatch cacheCondition = new CountDownLatch(1);
     private final ConcurrentHashMap<String, CacheData> cacheMap = new ConcurrentHashMap<>(16);
+
     public ClientWorker(HttpAgent httpAgent,
                         String identify,
                         ServerHealthCheck serverHealthCheck,
                         String version,
                         ClientShutdown clientShutdown) {
+        this.hippo4jClientShutdown = clientShutdown;
+        this.version = version;
         this.agent = httpAgent;
         this.identify = identify;
         this.timeout = Constants.CONFIG_LONG_POLL_TIMEOUT;
@@ -115,6 +128,14 @@ public class ClientWorker implements DisposableBean {
     private List<String> checkUpdateDataIds(List<CacheData> cacheDataList, List<String> inInitializingCacheList) {
         StringBuilder sb = new StringBuilder();
         for(CacheData cacheData : cacheDataList) {
+            sb.append(cacheData.threadPoolId).append(WORD_SEPARATOR);
+            sb.append(cacheData.itemId).append(WORD_SEPARATOR);
+            sb.append(cacheData.tenantId).append(WORD_SEPARATOR);
+            sb.append(identify).append(WORD_SEPARATOR);
+            sb.append(cacheData.getMd5()).append(LINE_SEPARATOR);
+            if (cacheData.isInitializing()) {
+                inInitializingCacheList.add(GroupKey.getKeyTenant(cacheData.threadPoolId, cacheData.itemId, cacheData.tenantId));
+            }
         }
         boolean isInitializingCacheList = !inInitializingCacheList.isEmpty();
         return checkUpdateTpids(sb.toString(),isInitializingCacheList);
@@ -133,11 +154,12 @@ public class ClientWorker implements DisposableBean {
             long readTimeoutMs = 30000 + Math.round(30000 >> 1);
             Result result = agent.httpPostByConfig("1",headers,params,readTimeoutMs);
             if(result != null) {
-                return
+                return parseUpdateDataIdResponse(result.getData().toString());
             }
-        } catch () {
-
+        } catch (Exception ex) {
+            setHealthServer(false);
         }
+        return Collections.emptyList();
     }
 
     /**
@@ -175,6 +197,51 @@ public class ClientWorker implements DisposableBean {
         params.put("itemId",itemId);
         params.put("tpId",itemId);
         params.put("instanceId",identify);
-        Result result =
+        Result result = agent.httpGetByConfig(CONFIG_CONTROLLER_PATH, null, params, readTimeout);
+        if (result.isSuccess()) {
+            return JSONUtil.toJSONString(result.getData());
+        }
+        log.error("Sub server namespace: {}, itemId: {}, threadPoolId: {}, result code: {}", namespace, itemId, threadPoolId, result.getCode());
+        return NULL;
+    }
+
+    public void addTenantListeners(String namespace, String itemId, String threadPoolId, List<? extends Listener> listeners) {
+        CacheData cacheData = addCacheDataIfAbsent(namespace, itemId, threadPoolId);
+        for (Listener listener : listeners) {
+            cacheData.addListener(listener);
+        }
+        // Lazy loading
+        if (awaitApplicationComplete.getCount() == 0L) {
+            cacheCondition.countDown();
+        }
+    }
+
+    public CacheData addCacheDataIfAbsent(String namespace, String itemId, String threadPoolId) {
+        CacheData cacheData = cacheMap.get(threadPoolId);
+        if (cacheData != null) {
+            return cacheData;
+        }
+        cacheData = new CacheData(namespace, itemId, threadPoolId);
+        CacheData lastCacheData = cacheMap.putIfAbsent(threadPoolId, cacheData);
+        if (lastCacheData == null) {
+            String serverConfig;
+            try {
+                serverConfig = getServerConfig(namespace, itemId, threadPoolId, 3000L);
+                ThreadPoolParameterInfo poolInfo = JSONUtil.parseObject(serverConfig, ThreadPoolParameterInfo.class);
+                cacheData.setContent(ContentUtil.getPoolContent(poolInfo));
+            } catch (Exception ex) {
+                log.error("Cache Data Error. Service Unavailable: {}", ex.getMessage());
+            }
+            lastCacheData = cacheData;
+        }
+        return lastCacheData;
+    }
+
+    private void setHealthServer(boolean isHealthServer) {
+        this.serverHealthCheck.setHealthStatus(isHealthServer);
+    }
+
+    public void notifyApplicationComplete() {
+        awaitApplicationComplete.countDown();
     }
 }
